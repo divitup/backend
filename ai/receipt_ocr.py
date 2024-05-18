@@ -1,7 +1,7 @@
 import os
 
 from langchain.chains import TransformChain
-from langchain_community.chat_models import ChatOpenAI
+from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage
 from langchain_core.runnables import chain
 from langchain_core.output_parsers import JsonOutputParser
