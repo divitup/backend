@@ -1,12 +1,9 @@
-from inits.general import openai_client
+from dataclasses import dataclass
 
-def receipt_ocr(image_url):
-    '''
 
-    :param image_url: S3 URL of the image
-    :return: Receipt OCR result
-    '''
-    prompt = """
+@dataclass
+class VisionReceiptExtractionPrompt:
+    template: str = """
        You are an expert at information extraction from images of receipts.
 
        Given this of a receipt, extract the following information into a json string. The keys with their descriptions are as follows:
@@ -31,25 +28,3 @@ def receipt_ocr(image_url):
        You must obey the output format under all circumstances. Please follow the formatting instructions exactly.
        Do not return any additional comments or explanation.
        """
-
-
-response = openai_client.chat.completions.create(
-    model="gpt-4o",
-    messages=[
-        {
-            "role": "user",
-            "content": [
-                {"type": "text", "text": "What’s in this image?"},
-                {
-                    "type": "image_url",
-                    "image_url": {
-                        "url": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/dd/Gfp-wisconsin-madison-the-nature-boardwalk.jpg/2560px-Gfp-wisconsin-madison-the-nature-boardwalk.jpg",
-                    },
-                },
-            ],
-        }
-    ],
-    max_tokens=300,
-)
-
-print(response.choices[0])
