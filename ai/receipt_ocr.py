@@ -17,6 +17,11 @@ class VisionReceiptExtractionChain:
     def __init__(self, llm):
         self.llm = llm
         self.chain = self.set_up_chain()
+        self.model = ChatOpenAI(
+            api_key=os.getenv("OPENAI_API"),
+            temperature=0,
+            model="gpt-4o",
+            max_tokens=1024)
 
     @staticmethod
     def load_image(path: dict) -> dict:
@@ -72,6 +77,24 @@ class VisionReceiptExtractionChain:
         return result, cb
 
 
+def invoke_ocr_chain(image_url):
+    model = ChatOpenAI(
+        api_key=os.getenv("OPENAI_API"),
+        temperature=0,
+        model="gpt-4o",
+        max_tokens=1024
+    )
+
+    extractor = VisionReceiptExtractionChain(model)
+
+    res, cb = extractor.run_and_count_tokens(
+        {"image_url": image_url}
+    )
+
+    return res, cb
+
+
+'''
 if __name__ == "__main__":
     model = ChatOpenAI(
         api_key=os.getenv("OPENAI_API"),
@@ -89,3 +112,4 @@ if __name__ == "__main__":
     print(res)
     print("Callback:")
     print(cb)
+'''
