@@ -10,6 +10,11 @@ from langchain.callbacks import get_openai_callback
 
 from ai.receipt_model import ReceiptInformation
 from ai.receipt_ocr_prompt import VisionReceiptExtractionPrompt
+from ocrmac import ocrmac
+import requests
+
+import aiohttp
+import asyncio
 
 
 class VisionReceiptExtractionChain:
@@ -92,6 +97,25 @@ def invoke_ocr_chain(image_url):
     )
 
     return res, cb
+
+
+def download_image(image_url):
+    response = requests.get(image_url)
+    if response.status_code == 200:
+        with open("temp_image.png", 'wb') as f:
+            f.write(response.content)
+        return "temp_image.png"
+    return None  # or handle error appropriately
+
+
+def invoke_ocr(image_url):
+    image_path = download_image(image_url)  # Only if needed
+
+    # Assuming ocrmac can handle local file paths
+    annotations = ocrmac.OCR(
+        image_path if image_path else image_url).recognize()
+    print(annotations)
+    return annotations
 
 
 '''

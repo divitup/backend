@@ -1,14 +1,14 @@
 import base64
 import logging
 import uuid
-import sqlite3  # Assuming you are using sqlite
-from ai.receipt_ocr import invoke_ocr_chain
+import sqlite3
+from ai.receipt_ocr import invoke_ocr_chain, invoke_ocr
 from inits.s3 import s3_upload
 from inits.sql import conn, c
 from io import BytesIO
-
 from flask import Flask, Blueprint, jsonify, request
 from werkzeug.exceptions import BadRequest
+from threading import Thread
 
 controller = Blueprint('controller', __name__)
 logger = logging.getLogger(__name__)
@@ -20,7 +20,27 @@ def hello():
     return jsonify({'message': 'Hello world!'})
 
 
-@controller.route('/api/v1/upload', methods=['POST'])
+def async_ocr_processing(s3_path, session_id):
+    try:
+        # OCR Processing
+        annotations = invoke_ocr(
+            "https://divup-images.s3.amazonaws.com/" + s3_path)
+        # Update the database with the result
+        with conn:
+            c.execute(
+                'UPDATE sessions SET processed = 1, result = ? WHERE session_id = ?',
+                (str(annotations), session_id),
+            )
+    except Exception as e:
+        logger.error(f'Error in async OCR processing: {str(e)}')
+        with conn:
+            # @TODO: add error in table
+            c.execute(
+                'UPDATE sessions SET processed = 1, result = ? WHERE session_id = ?',
+                (str(e), session_id))
+
+
+@ controller.route('/api/v1/upload', methods=['POST'])
 def upload():
     try:
         data = request.json.get('image')
@@ -45,20 +65,14 @@ def upload():
         )
         conn.commit()
 
-        # Simulate or trigger image processing
-        # Assuming `image_processing` is a function you have defined elsewhere
-        res, cb = invoke_ocr_chain(
-            "https://divup-images.s3.amazonaws.com/" + s3_path)
-        c.execute(
-            'UPDATE sessions SET processed = 1, result = ? WHERE session_id = ?',
-            (str(res), session_id),
-        )
-        conn.commit()
+        # Start the OCR processing in a separate thread
+        thread = Thread(target=async_ocr_processing,
+                        args=(s3_path, session_id))
+        thread.start()
 
         return (
             jsonify(
-                {'session_id': session_id, 'status': 'uploaded and processing started',
-                 'result': res}
+                {'session_id': session_id, 'status': 'uploaded and processing started'}
             ),
             200,
         )
@@ -71,7 +85,7 @@ def upload():
         )
 
 
-@controller.route('/api/v1/result', methods=['GET'])
+@ controller.route('/api/v1/result', methods=['GET'])
 def result():
     session_id = request.args.get('session_id')
     if not session_id:
